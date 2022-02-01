@@ -2,7 +2,7 @@ extension = sgs.Package("deity", sgs.Package_GeneralPack)
 -- 神将还是野心家势力吧
 -- 神甄姬看似弱，但也比一般的强吧
 -- 神甄姬
-shenzhenji = sgs.General(extension, "shenzhenji", "careerist", "3", false, true)
+shenzhenji = sgs.General(extension, "shenzhenji", "careerist", "4", false, true)
 -- 神赋：回合结束时，若你的手牌数为：奇数，你可对一名其他角色造成1点雷电伤害，若造成其死亡，你可重复此流程；
 --    偶数，你可令一名角色摸一张牌或你弃置其一张手牌，若执行后该角色的手牌数等于其体力值，你可重复此流程（不能对本回合指定过的目标使用）。
 shenfu =
