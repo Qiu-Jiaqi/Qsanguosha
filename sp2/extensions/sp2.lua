@@ -126,7 +126,7 @@ shixin =
     end,
     on_effect = function(self, event, room, player, data, ask_who)
         local msg = sgs.LogMessage()
-        msg.type = "#shixinProtect"
+        msg.type = "$shixin_protect"
         msg.from = player
         msg.arg = data:toDamage().damage
         msg.arg2 = "fire_nature"
@@ -152,6 +152,6 @@ sgs.LoadTranslationTable {
     [":shixin"] = "锁定技，每当你受到火焰伤害时，防止此伤害。",
     ["$shixin1"] = "释怀之戾气，化君之不悦。",
     ["$shixin2"] = "薪薪之火，安能伤我？",
-    ["#shixinProtect"] = "%from防止了%arg点%arg2伤害。"
+    ["$shixin_protect"] = "%from 防止了 %arg 点 %arg2 伤害。"
 }
 return {extension}
