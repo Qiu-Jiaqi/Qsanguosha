@@ -62,7 +62,7 @@ xianfu_target =
     frequency = sgs.Skill_Compulsory,
     events = {sgs.GeneralShown},
     can_trigger = function(self, event, room, player, data)
-        -- 用标记检查是否未发动
+        -- 使用标记检查是否未发动
         if player and player:isAlive() and player:hasShownSkill("xianfu") and player:getMark(self:objectName()) == 0 then
             return self:objectName()
         end
@@ -84,7 +84,6 @@ xianfu_target =
         return false
     end
 }
-
 -- 筹策：当你受到1点伤害后，你可以判定，若结果为：黑色，你弃置一名角色区域里的一张牌；红色，你令一名角色摸一张牌（先辅的角色摸两张）。
 chouce =
     sgs.CreateMasochismSkill {

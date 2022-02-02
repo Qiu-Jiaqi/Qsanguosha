@@ -136,7 +136,7 @@ sgs.LoadTranslationTable {
     ["mayunlu"] = "马云禄",
     ["&mayunlu"] = "马云禄",
     ["#mayunlu"] = "剑胆琴心",
-    ["~mayunlu"] = "呜呜呜~~~是你们欺负人",
+    ["~mayunlu"] = "呜呜呜~~~是你们欺负人。",
     ["mashu_mayunlu"] = "马术",
     ["fengpo"] = "凤魄",
     [":fengpo"] = "当你使用【杀】或【决斗】仅指定一名角色为目标后，你可以观看其手牌然后选择一项：1.摸X张牌；2.此牌造成的伤害+X。（X为其方块手牌数，若你本局游戏内杀死过角色，则修改为其红色手牌数）",
@@ -147,6 +147,6 @@ sgs.LoadTranslationTable {
     -- 破案了，bug原来是因为#，用$就可以了，以后的房间信息，都用$
     -- ["#fengpo_addDamage"] = "%from 执行了“%arg”的效果，%card 伤害值 %arg2"
     ["$fengpo_addDamage"] = "%from 执行了“%arg”的效果，%card 伤害值 %arg2",
-    ["$fengpo_upgrade"] = "%from 杀死了 %to，%from 在本局游戏内杀死过角色，“%arg”技能描述中的X修改为其红色手牌数。"
+    ["$fengpo_upgrade"] = "%from 杀死了 %to，%from 在本局游戏内杀死过角色，“%arg”技能描述中的X修改为其红色手牌数"
 }
 return {extension}

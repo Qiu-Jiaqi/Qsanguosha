@@ -1,10 +1,8 @@
 extension = sgs.Package("deity", sgs.Package_GeneralPack)
--- 神将还是野心家势力吧
--- 神甄姬看似弱，但也比一般的强吧
 -- 神甄姬
 shenzhenji = sgs.General(extension, "shenzhenji", "careerist", "4", false, true)
 -- 神赋：回合结束时，若你的手牌数为：奇数，你可对一名其他角色造成1点雷电伤害，若造成其死亡，你可重复此流程；
---    偶数，你可令一名角色摸一张牌或你弃置其一张手牌，若执行后该角色的手牌数等于其体力值，你可重复此流程（不能对本回合指定过的目标使用）。
+--      偶数，你可令一名本回合未指定过的角色摸一张牌或弃置其一张手牌，若执行后该角色的手牌数等于其体力值，你可重复此流程。
 shenfu =
     sgs.CreatePhaseChangeSkill {
     name = "shenfu",
@@ -43,7 +41,7 @@ shenfu =
                             room:askForCardChosen(player, target, "h", self:objectName(), false, sgs.Card_MethodDiscard)
                         room:throwCard(id, target, player)
                     end
-                    -- 移除已发动过的目标
+                    -- 移除指定过的目标
                     targets:removeOne(target)
                     if target:getHandcardNum() ~= target:getHp() then
                         break
@@ -59,7 +57,7 @@ shenfu =
                 if target then
                     room:broadcastSkillInvoke(self:objectName())
                     room:damage(sgs.DamageStruct(self:objectName(), player, target, 1, sgs.DamageStruct_Thunder))
-                    -- 移除已发动过的目标
+                    -- 移除死亡目标
                     targets:removeOne(target)
                     if target:isAlive() then
                         break
@@ -87,11 +85,11 @@ sgs.LoadTranslationTable {
     ["#shenzhenji"] = "洛水凌波",
     ["~shenzhenji"] = "众口铄金，难证吾清。",
     ["shenfu"] = "神赋",
-    [":shenfu"] = "回合结束时，若你的手牌数为：奇数，你可对一名其他角色造成1点雷电伤害，若造成其死亡，你可重复此流程；偶数，你可令一名角色摸一张牌或你弃置其一张手牌，若执行后该角色的手牌数等于其体力值，你可重复此流程（不能对本回合指定过的目标使用）。",
-    ["@shenfu_ou"] = "你可以发动“神赋”，选择一名角色，令其摸一张牌或弃置一张牌。",
+    [":shenfu"] = "回合结束时，若你的手牌数为：奇数，你可对一名其他角色造成1点雷电伤害，若造成其死亡，你可重复此流程；偶数，你可令一名本回合未指定过的角色摸一张牌或弃置其一张手牌，若执行后该角色的手牌数等于其体力值，你可重复此流程。",
+    ["@shenfu_ou"] = "你可以发动“神赋”，选择一名角色，令其摸一张牌或弃置其一张手牌。",
     ["@shenfu_ji"] = "你可以发动“神赋”，选择一名其他角色，对其造成1点雷电伤害。",
     ["shenfu:draw"] = "令其摸一张牌",
-    ["shenfu:discard"] = "弃置其一张牌",
+    ["shenfu:discard"] = "弃置其一张手牌",
     ["$shenfu1"] = "河洛之神，诗赋可抒。",
     ["$shenfu2"] = "云神鱼游，罗扇掩面。",
     ["qixian"] = "七弦",

@@ -1,7 +1,7 @@
 extension = sgs.Package("yjcm", sgs.Package_GeneralPack)
 -- 张春华
 zhangchunhua = sgs.General(extension, "zhangchunhua", "wei", "3", false, true)
--- 绝情：锁定技，伤害结算开始前，你将要造成的伤害视为失去体力。
+-- 绝情：锁定技，你即将造成的伤害视为失去体力。
 jueqing =
     sgs.CreateTriggerSkill {
     name = "jueqing",
@@ -27,7 +27,7 @@ jueqing =
         return true
     end
 }
--- 伤逝：每当你的手牌数、体力值或体力上限改变后，你可以将手牌补至X张。（X为你已损失的体力值）
+-- 伤逝：当你的手牌数小于X时，你可以将手牌摸至X张。（X为你已损失的体力值）
 shangshi =
     sgs.CreateTriggerSkill {
     name = "shangshi",
@@ -37,11 +37,9 @@ shangshi =
         sgs.MaxHpChanged,
         sgs.HpChanged
     },
-    frequency = sgs.Skill_NotFrequent,
     can_trigger = function(self, event, room, player, data)
         if
             player and player:isAlive() and player:hasSkill(self:objectName()) and
-                player:getPhase() ~= sgs.Player_Discard and
                 player:getHandcardNum() < player:getLostHp()
          then
             return self:objectName()
@@ -68,11 +66,11 @@ sgs.LoadTranslationTable {
     ["#zhangchunhua"] = "冷血皇后",
     ["~zhangchunhua"] = "今夕何夕，君已陌路。",
     ["jueqing"] = "绝情",
-    [":jueqing"] = "锁定技，伤害结算开始前，你将要造成的伤害视为失去体力。 ",
+    [":jueqing"] = "锁定技，你即将造成的伤害视为失去体力。 ",
     ["$jueqing1"] = "化爱为恨，恨之透骨。",
     ["$jueqing2"] = "为上位者，当至无情。",
     ["shangshi"] = "伤逝",
-    [":shangshi"] = "每当你的手牌数、体力值或体力上限改变后，你可以将手牌补至X张。（X为你已损失的体力值）",
+    [":shangshi"] = "当你的手牌数小于X时，你可以将手牌摸至X张。（X为你已损失的体力值）",
     ["$shangshi1"] = "身伤易愈，心伤难合。",
     ["$shangshi2"] = "心随情碎，情随伤逝。"
 }
