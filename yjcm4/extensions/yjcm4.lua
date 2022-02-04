@@ -87,9 +87,12 @@ shibei =
         local judge = sgs.JudgeStruct()
         judge.who = player
         judge.reason = self:objectName()
-        judge.play_animation = true
+        -- 默认为true，显示生效绿色的勾勾或者失效红色的叉叉，这里不需要生不生效，只要判定结果的颜色
+        judge.play_animation = false
+        judge.pattern = ".|red"
+        judge.good = true
         room:judge(judge)
-        if judge.card:isRed() then
+        if judge:isGood() then
             room:setTag(self:objectName(), sgs.QVariant(true))
         else
             room:setTag(self:objectName(), sgs.QVariant(false))
