@@ -113,7 +113,6 @@ chouce =
         local judge = sgs.JudgeStruct()
         judge.who = player
         judge.reason = self:objectName()
-        judge.play_animation = true
         room:judge(judge)
         if judge.card:isRed() then
             local target =
@@ -263,7 +262,7 @@ qiangwu_card =
         local judge = sgs.JudgeStruct()
         judge.who = source
         judge.reason = self:objectName()
-        judge.play_animation = true
+        judge.play_animation = false
         room:judge(judge)
         room:setPlayerMark(source, self:objectName(), judge.card:getNumber())
     end
@@ -274,6 +273,7 @@ qiangwu_vs =
     view_as = function(self)
         local card = qiangwu_card:clone()
         card:setSkillName(self:objectName())
+        -- 用于亮将
         card:setShowSkill(self:objectName())
         return card
     end,
@@ -289,7 +289,15 @@ qiangwu =
     can_trigger = function(self, event, room, player, data)
         -- 只有进行了判定，设置了mark，才有必要进行回合结束mark置零、使用杀时判断等操作
         if player and player:isAlive() and player:hasSkill(self:objectName()) and player:getMark(self:objectName()) ~= 0 then
-            return self:objectName()
+            if
+                (event == sgs.EventPhaseStart and player:getPhase() == sgs.Player_NotActive) or
+                    (event == sgs.PreCardUsed and data:toCardUse().card:isKindOf("Slash") and
+                        data:toCardUse().card:getNumber() >= player:getMark(self:objectName())) or
+                    (event == sgs.ConfirmDamage and data:toDamage().card:isKindOf("Slash") and
+                        data:toDamage().card:getNumber() == player:getMark(self:objectName()))
+             then
+                return self:objectName()
+            end
         end
         return ""
     end,
@@ -297,31 +305,28 @@ qiangwu =
         return player:hasShownSkill(self:objectName()) and true or false
     end,
     on_effect = function(self, event, room, player, data, ask_who)
-        if event == sgs.EventPhaseStart and player:getPhase() == sgs.Player_NotActive then
-            -- 回合结束时，mark置零
+        -- 以下判断在can_trigger已写
+        if event == sgs.EventPhaseStart then
+            -- 回合结束，mark置零
             room:setPlayerMark(player, self:objectName(), 0)
         elseif event == sgs.PreCardUsed then
+            -- >=点数的杀，不计入次数限制
             local use = data:toCardUse()
-            if use.card and use.card:isKindOf("Slash") and use.card:getNumber() >= player:getMark(self:objectName()) then
-                -- 不计入次数限制
-                room:addPlayerHistory(player, use.card:getClassName(), -1)
-                use.m_addHistory = false
-                data:setValue(use)
-            end
+            room:addPlayerHistory(player, use.card:getClassName(), -1)
+            use.m_addHistory = false
+            data:setValue(use)
         elseif event == sgs.ConfirmDamage then
+            -- =点数的杀，伤害值+1
             local damage = data:toDamage()
-            if damage.card:isKindOf("Slash") and damage.card:getNumber() == player:getMark(self:objectName()) then
-                -- 伤害值+1
-                damage.damage = damage.damage + 1
-                data:setValue(damage)
-                local msg = sgs.LogMessage()
-                msg.type = "$qiangwu_addDamage"
-                msg.from = player
-                msg.arg = "qiangwu"
-                msg.card_str = damage.card:toString()
-                msg.arg2 = "+1"
-                room:sendLog(msg)
-            end
+            damage.damage = damage.damage + 1
+            data:setValue(damage)
+            local msg = sgs.LogMessage()
+            msg.type = "$qiangwu_addDamage"
+            msg.from = player
+            msg.arg = "qiangwu"
+            msg.card_str = damage.card:toString()
+            msg.arg2 = "+1"
+            room:sendLog(msg)
         end
         return false
     end
@@ -335,15 +340,16 @@ qiangwu_mod =
             return 732
         end
         return 0
+    end,
+    -- 用History才能实现技能中描述的不计次数限制，只用这种的话，先用了>=的牌，再用<的则不可以，就是计入了次数了
+    -- 但也必须写这个，不然用了<的，再用>=的又不能再用了
+    residue_func = function(self, player, card)
+        local n = player:getMark("qiangwu")
+        if n ~= 0 and card:getNumber() ~= 0 and card:getNumber() >= n then
+            return 732
+        end
+        return 0
     end
-    -- 用History才能实现技能中描述的不计次数限制，用这种的话，先用了>=的牌，再用<的则不可以，就是计入了次数了
-    -- residue_func = function(self, player, card)
-    --     local n = player:getMark("qiangwu")
-    --     if n ~= 0 and card:getNumber() ~= 0 and card:getNumber() >= n then
-    --         return 732
-    --     end
-    --     return 0
-    -- end
 }
 zhangxingcai:addSkill(shenxian)
 zhangxingcai:addSkill(qiangwu)
