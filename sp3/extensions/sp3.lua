@@ -1,6 +1,6 @@
 extension = sgs.Package("sp3", sgs.Package_GeneralPack)
 -- 马云禄
-mayunlu = sgs.General(extension, "mayunlu", "shu", "4", true, true)
+mayunlu = sgs.General(extension, "mayunlu", "shu", "4", false, true)
 -- 马术：锁定技，你与其他角色距离-1。
 mashu_mayunlu =
     sgs.CreateDistanceSkill {
