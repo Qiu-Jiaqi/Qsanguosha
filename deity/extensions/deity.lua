@@ -1,11 +1,15 @@
 extension = sgs.Package("deity", sgs.Package_GeneralPack)
+sgs.LoadTranslationTable {
+    ["deity"] = "神包"
+}
 -- 神甄姬
 shenzhenji = sgs.General(extension, "shenzhenji", "careerist", "4", false, true)
 -- 神赋：回合结束时，若你的手牌数为：奇数，你可对一名其他角色造成1点雷电伤害，若造成其死亡，你可重复此流程；
 --      偶数，你可令一名本回合未指定过的角色摸一张牌或弃置其一张手牌，若执行后该角色的手牌数等于其体力值，你可重复此流程。
 shenfu =
-    sgs.CreatePhaseChangeSkill {
+    sgs.CreateTriggerSkill {
     name = "shenfu",
+    events = sgs.EventPhaseStart,
     can_trigger = function(self, event, room, player, data)
         if player and player:isAlive() and player:hasSkill(self:objectName()) and player:getPhase() == sgs.Player_Finish then
             return self:objectName()
@@ -15,7 +19,7 @@ shenfu =
     on_cost = function(self, event, room, player, data, ask_who)
         local targets = room:getAlivePlayers()
         if player:getHandcardNum() % 2 == 0 then
-            while true do
+            while not targets:isEmpty() do
                 -- 询问选择目标
                 local target = room:askForPlayerChosen(player, targets, self:objectName(), "@shenfu_ou", true, true)
                 if target then
@@ -31,7 +35,7 @@ shenfu =
                     if choice == "draw" then
                         target:drawCards(1, self:objectName())
                     else
-                        -- 询问选择卡牌
+                        -- 询问选择弃置卡牌
                         local id =
                             room:askForCardChosen(player, target, "h", self:objectName(), false, sgs.Card_MethodDiscard)
                         room:throwCard(id, target, player)
@@ -48,7 +52,7 @@ shenfu =
         else
             -- 移除自己
             targets:removeOne(player)
-            while true do
+            while not targets:isEmpty() do
                 -- 询问选择目标
                 local target = room:askForPlayerChosen(player, targets, self:objectName(), "@shenfu_ji", true, true)
                 if target then
@@ -67,9 +71,6 @@ shenfu =
             end
         end
         return false
-    end,
-    on_phasechange = function(self, player)
-        return false
     end
 }
 -- 七弦：锁定技，你的手牌上限为7。
@@ -80,6 +81,7 @@ qixian =
         return player:hasShownSkill(self:objectName()) and 7 or -1
     end
 }
+-- 用于未亮将时回合结束询问是否发动七弦
 qixian_trigger =
     sgs.CreatePhaseChangeSkill {
     name = "#qixian",
@@ -108,7 +110,6 @@ shenzhenji:addSkill(qixian)
 shenzhenji:addSkill(qixian_trigger)
 sgs.insertRelatedSkills(extension, qixian, qixian_trigger)
 sgs.LoadTranslationTable {
-    ["deity"] = "神包",
     ["shenzhenji"] = "神甄姬",
     ["&shenzhenji"] = "神甄姬",
     ["#shenzhenji"] = "洛水凌波",
