@@ -1,4 +1,7 @@
 extension = sgs.Package("yjcm", sgs.Package_GeneralPack)
+sgs.LoadTranslationTable {
+    ["yjcm"] = "一将成名"
+}
 -- 张春华
 zhangchunhua = sgs.General(extension, "zhangchunhua", "wei", "3", false, true)
 -- 绝情：锁定技，你即将造成或受到的伤害均视为失去体力，此时若你手牌不为空，需弃置一张手牌。
@@ -23,14 +26,15 @@ jueqing =
     end,
     on_effect = function(self, event, room, player, data, ask_who)
         if not player:isKongcheng() then
-            room:askForDiscard(player, self:objectName(), 1, 1, true, false)
+            -- 第五个参数表示是否可以选择，false不可选择，必须弃置
+            room:askForDiscard(player, self:objectName(), 1, 1, false, false)
         end
         room:loseHp(data:toDamage().to, data:toDamage().damage)
         -- 取消原效果，改为体力流失，返回true
         return true
     end
 }
--- 伤逝：当你的手牌数小于X时，你可以将手牌摸至X张。（X为你已损失的体力值）
+-- 伤逝：当你的手牌数小于X时，你可以将手牌摸至X张。（X为你已损失的体力值的两倍）
 shangshi =
     sgs.CreateTriggerSkill {
     name = "shangshi",
@@ -43,7 +47,7 @@ shangshi =
     can_trigger = function(self, event, room, player, data)
         if
             player and player:isAlive() and player:hasSkill(self:objectName()) and
-                player:getHandcardNum() < player:getLostHp()
+                player:getHandcardNum() < player:getLostHp() * 2
          then
             return self:objectName()
         end
@@ -56,14 +60,13 @@ shangshi =
         return false
     end,
     on_effect = function(self, event, room, player, data, ask_who)
-        player:drawCards(player:getLostHp() - player:getHandcardNum(), self:objectName())
+        player:drawCards(player:getLostHp() * 2 - player:getHandcardNum(), self:objectName())
         return false
     end
 }
 zhangchunhua:addSkill(jueqing)
 zhangchunhua:addSkill(shangshi)
 sgs.LoadTranslationTable {
-    ["yjcm"] = "一将成名",
     ["zhangchunhua"] = "张春华",
     ["&zhangchunhua"] = "张春华",
     ["#zhangchunhua"] = "冷血皇后",
@@ -73,7 +76,7 @@ sgs.LoadTranslationTable {
     ["$jueqing1"] = "化爱为恨，恨之透骨。",
     ["$jueqing2"] = "为上位者，当至无情。",
     ["shangshi"] = "伤逝",
-    [":shangshi"] = "当你的手牌数小于X时，你可以将手牌摸至X张。（X为你已损失的体力值）",
+    [":shangshi"] = "当你的手牌数小于X时，你可以将手牌摸至X张。（X为你已损失的体力值的两倍）",
     ["$shangshi1"] = "身伤易愈，心伤难合。",
     ["$shangshi2"] = "心随情碎，情随伤逝。"
 }
