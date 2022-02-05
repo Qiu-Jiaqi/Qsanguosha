@@ -8,7 +8,7 @@ xizhicai = sgs.General(extension, "xizhicai", "wei", "3", true, true)
 tiandu_xizhicai =
     sgs.CreateTriggerSkill {
     name = "tiandu_xizhicai",
-    events = {sgs.FinishJudge},
+    events = sgs.FinishJudge,
     can_trigger = function(self, event, room, player, data)
         if player and player:isAlive() and player:hasSkill(self:objectName()) then
             return self:objectName()
@@ -50,7 +50,8 @@ xianfu =
             room:damage(
                 sgs.DamageStruct(self:objectName(), nil, ask_who, data:toDamage().damage, sgs.DamageStruct_Normal)
             )
-        else
+        elseif ask_who:isWounded() then
+            -- 已受伤时再恢复
             local recover = sgs.RecoverStruct()
             recover.who = ask_who
             recover.recover = data:toRecover().recover
@@ -63,7 +64,7 @@ xianfu_target =
     sgs.CreateTriggerSkill {
     name = "#xianfu_target",
     frequency = sgs.Skill_Compulsory,
-    events = {sgs.GeneralShown},
+    events = sgs.GeneralShown,
     can_trigger = function(self, event, room, player, data)
         -- 使用标记检查是否未发动
         if player and player:isAlive() and player:hasShownSkill("xianfu") and player:getMark(self:objectName()) == 0 then
@@ -165,7 +166,7 @@ sgs.LoadTranslationTable {
     ["$tiandu_xizhicai1"] = "既是如此~",
     ["$tiandu_xizhicai2"] = "天意，不可逆~",
     ["xianfu"] = "先辅",
-    [":xianfu"] = "锁定技，游戏开始时，你选择一名其他角色，当其受到伤害后，你受到等量的伤害，当其回复体力后，你回复等量的体力。",
+    [":xianfu"] = "锁定技，亮将时，你选择一名其他角色，当其受到伤害后，你受到等量的伤害，当其回复体力后，你回复等量的体力。",
     ["$xianfu1"] = "辅佐明君，从一而终。",
     ["$xianfu2"] = "吾于此生，竭尽所能。",
     ["@xianfu_choose"] = "发动“先辅”，选择一名其他角色。",
