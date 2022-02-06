@@ -16,13 +16,10 @@ tiandu_xizhicai =
         return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        if player:askForSkillInvoke(self:objectName(), data) then
-            room:broadcastSkillInvoke(self:objectName())
-            return true
-        end
-        return false
+        return player:askForSkillInvoke(self:objectName(), data)
     end,
     on_effect = function(self, event, room, player, data, ask_who)
+        room:broadcastSkillInvoke(self:objectName())
         player:obtainCard(data:toJudge().card)
         return false
     end
@@ -32,26 +29,51 @@ xianfu =
     sgs.CreateTriggerSkill {
     name = "xianfu",
     frequency = sgs.Skill_Compulsory,
-    events = {sgs.Damaged, sgs.HpRecover},
+    events = {sgs.GeneralShown, sgs.Damaged, sgs.HpRecover},
+    on_record = function(self, event, room, player, data)
+        if
+            event == sgs.GeneralShown and player and player:isAlive() and player:hasShownSkill(self:objectName()) and
+                -- 使用标记检查是否未发动
+                player:getMark(self:objectName()) == 0
+         then
+            room:sendCompulsoryTriggerLog(player, self:objectName(), true)
+            room:broadcastSkillInvoke(self:objectName())
+            -- 第五个参数false表示必须选择
+            local target =
+                room:askForPlayerChosen(
+                player,
+                room:getOtherPlayers(player),
+                self:objectName(),
+                "@xianfu_choose",
+                false,
+                true
+            )
+            -- 标记先辅选择的角色
+            target:addMark("@xianfu")
+            -- 使用标记，记录已发动
+            player:addMark(self:objectName())
+        end
+    end,
     can_trigger = function(self, event, room, player, data)
         local xizhicai = room:findPlayerBySkillName(self:objectName())
-        if player and player:isAlive() and player:getMark("@xianfu") > 0 then
+        -- 这里原来用player判断，会导致戏志才死后，先辅的角色受伤或回血就不断触发技能，可能是返回了空，ask_who变成了触发者
+        if event ~= sgs.GeneralShown and xizhicai and xizhicai:isAlive() and player:getMark("@xianfu") > 0 then
             return self:objectName(), xizhicai
         end
         return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        room:sendCompulsoryTriggerLog(ask_who, self:objectName(), true)
-        room:broadcastSkillInvoke(self:objectName())
-        return true
+        -- 若为回复体力，则受伤时才触发技能
+        return not (event == sgs.HpRecover and not ask_who:isWounded())
     end,
     on_effect = function(self, event, room, player, data, ask_who)
+        room:sendCompulsoryTriggerLog(ask_who, self:objectName(), true)
+        room:broadcastSkillInvoke(self:objectName())
         if event == sgs.Damaged then
             room:damage(
                 sgs.DamageStruct(self:objectName(), nil, ask_who, data:toDamage().damage, sgs.DamageStruct_Normal)
             )
-        elseif ask_who:isWounded() then
-            -- 已受伤时再恢复
+        else
             local recover = sgs.RecoverStruct()
             recover.who = ask_who
             recover.recover = data:toRecover().recover
@@ -60,34 +82,32 @@ xianfu =
         return false
     end
 }
-xianfu_target =
-    sgs.CreateTriggerSkill {
-    name = "#xianfu_target",
-    frequency = sgs.Skill_Compulsory,
-    events = sgs.GeneralShown,
-    can_trigger = function(self, event, room, player, data)
-        -- 使用标记检查是否未发动
-        if player and player:isAlive() and player:hasShownSkill("xianfu") and player:getMark(self:objectName()) == 0 then
-            return self:objectName()
-        end
-        return ""
-    end,
-    on_cost = function(self, event, room, player, data, ask_who)
-        room:sendCompulsoryTriggerLog(player, "xianfu", true)
-        room:broadcastSkillInvoke("xianfu")
-        return true
-    end,
-    on_effect = function(self, event, room, player, data, ask_who)
-        -- 第五个参数false表示必须选择
-        local target =
-            room:askForPlayerChosen(player, room:getOtherPlayers(player), "xianfu", "@xianfu_choose", false, true)
-        -- 标记先辅选择的角色
-        target:addMark("@xianfu")
-        -- 使用标记，记录已发动
-        player:addMark(self:objectName())
-        return false
-    end
-}
+-- 使用on_record函数代替
+-- xianfu_target =
+--     sgs.CreateTriggerSkill {
+--     name = "#xianfu_target",
+--     frequency = sgs.Skill_Compulsory,
+--     events = sgs.GeneralShown,
+--     can_trigger = function(self, event, room, player, data)
+--         -- 使用标记检查是否未发动
+--         if player and player:isAlive() and player:hasShownSkill("xianfu") and player:getMark(self:objectName()) == 0 then
+--             return self:objectName()
+--         end
+--         return ""
+--     end,
+--     on_effect = function(self, event, room, player, data, ask_who)
+--         room:sendCompulsoryTriggerLog(player, "xianfu", true)
+--         room:broadcastSkillInvoke("xianfu")
+--         -- 第五个参数false表示必须选择
+--         local target =
+--             room:askForPlayerChosen(player, room:getOtherPlayers(player), "xianfu", "@xianfu_choose", false, true)
+--         -- 标记先辅选择的角色
+--         target:addMark("@xianfu")
+--         -- 使用标记，记录已发动
+--         player:addMark(self:objectName())
+--         return false
+--     end
+-- }
 -- 筹策：当你受到1点伤害后，你可以判定，若结果为：黑色，你弃置一名角色区域里的一张牌；红色，你令一名角色摸一张牌（先辅的角色摸两张）。
 chouce =
     sgs.CreateMasochismSkill {
@@ -103,14 +123,11 @@ chouce =
         return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        if player:askForSkillInvoke(self:objectName(), data) then
-            room:broadcastSkillInvoke(self:objectName())
-            return true
-        end
-        return false
+        return player:askForSkillInvoke(self:objectName(), data)
     end,
     on_damaged = function(self, player, damage)
         local room = player:getRoom()
+        room:broadcastSkillInvoke(self:objectName())
         local judge = sgs.JudgeStruct()
         judge.who = player
         judge.reason = self:objectName()
@@ -150,9 +167,10 @@ chouce =
 }
 xizhicai:addSkill(tiandu_xizhicai)
 xizhicai:addSkill(xianfu)
-xizhicai:addSkill(xianfu_target)
+-- 已合并到一个技能里面
+-- xizhicai:addSkill(xianfu_target)
 -- 组合技能，这里开始不会用，花了太多时间摸索
-sgs.insertRelatedSkills(extension, xianfu, xianfu_target)
+-- sgs.insertRelatedSkills(extension, xianfu, xianfu_target)
 -- extension:insertRelatedSkills("xianfu", "#xianfu_target")
 xizhicai:addSkill(chouce)
 sgs.LoadTranslationTable {
@@ -227,28 +245,29 @@ shenxian =
     sgs.CreateTriggerSkill {
     name = "shenxian",
     events = {sgs.Damage, sgs.EventPhaseEnd},
+    -- 记录就用专门的函数来记录，判断就做好判断的事
+    on_record = function(self, event, room, player, data)
+        local zhangxingcai = room:findPlayerBySkillName(self:objectName())
+        if event == sgs.Damage and zhangxingcai and zhangxingcai:isAlive() and player ~= zhangxingcai then
+            player:setFlags(self:objectName())
+        end
+    end,
     can_trigger = function(self, event, room, player, data)
         local zhangxingcai = room:findPlayerBySkillName(self:objectName())
-        if zhangxingcai and zhangxingcai:isAlive() and zhangxingcai:hasSkill(self:objectName()) then
-            if player ~= zhangxingcai and event == sgs.Damage then
-                room:setPlayerFlag(player, self:objectName())
-            elseif
-                event == sgs.EventPhaseEnd and player:getPhase() == sgs.Player_Finish and
-                    player:hasFlag(self:objectName())
-             then
-                return self:objectName(), zhangxingcai
-            end
+        if
+            event == sgs.EventPhaseEnd and zhangxingcai and zhangxingcai:isAlive() and
+                player:getPhase() == sgs.Player_Finish and
+                player:hasFlag(self:objectName())
+         then
+            return self:objectName(), zhangxingcai
         end
         return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        if ask_who:askForSkillInvoke(self:objectName(), data) then
-            room:broadcastSkillInvoke(self:objectName())
-            return true
-        end
-        return false
+        return ask_who:askForSkillInvoke(self:objectName(), data)
     end,
     on_effect = function(self, event, room, player, data, ask_who)
+        room:broadcastSkillInvoke(self:objectName())
         ask_who:drawCards(1, self:objectName())
         return false
     end
@@ -265,7 +284,11 @@ qiangwu_card =
         judge.reason = self:objectName()
         judge.play_animation = false
         room:judge(judge)
-        room:setPlayerMark(source, self:objectName(), judge.card:getNumber())
+        room:setPlayerMark(source, "qiangwu", judge.card:getNumber())
+        -- bug：想不明白，为什么用player的不行，但是>=的能不计入次数，说明触发技可以，后面的两招目标修改技不可以
+        -- 推测是视为技在客户端，而目标修改技注册在服务器的原因
+        -- room的使用@标记会有图标，这里还是先不要了
+        -- source:setMark("qiangwu", judge.card:getNumber())
     end
 }
 qiangwu_vs =
@@ -287,57 +310,48 @@ qiangwu =
     name = "qiangwu",
     view_as_skill = qiangwu_vs,
     events = {sgs.EventPhaseStart, sgs.PreCardUsed, sgs.ConfirmDamage},
+    -- 这里其实是on_record的任务，做一些标记，相当于锁定技，不需要询问发动，但can_trigger需要返回空，直接合起来了
     can_trigger = function(self, event, room, player, data)
-        -- 只有进行了判定，设置了mark，才有必要进行回合结束mark置零、使用杀时判断等操作
-        if player and player:isAlive() and player:hasSkill(self:objectName()) and player:getMark(self:objectName()) ~= 0 then
-            if
-                (event == sgs.EventPhaseStart and player:getPhase() == sgs.Player_NotActive) or
-                    (event == sgs.PreCardUsed and data:toCardUse().card:isKindOf("Slash") and
-                        data:toCardUse().card:getNumber() >= player:getMark(self:objectName())) or
-                    (event == sgs.ConfirmDamage and data:toDamage().card:isKindOf("Slash") and
-                        data:toDamage().card:getNumber() == player:getMark(self:objectName()))
+        if player and player:isAlive() and player:hasShownSkill(self:objectName()) and player:getMark("qiangwu") > 0 then
+            if event == sgs.EventPhaseStart and player:getPhase() == sgs.Player_NotActive then
+                -- bug：player的不行
+                -- player:setMark("qiangwu", 0)
+                -- 回合结束，mark置零
+                room:setPlayerMark(player, "qiangwu", 0)
+            elseif
+                event == sgs.PreCardUsed and data:toCardUse().card:isKindOf("Slash") and
+                    data:toCardUse().card:getNumber() >= player:getMark("qiangwu")
              then
-                return self:objectName()
+                -- >=点数的杀，不计入次数限制
+                local use = data:toCardUse()
+                room:addPlayerHistory(player, use.card:getClassName(), -1)
+                use.m_addHistory = false
+                data:setValue(use)
+            elseif
+                event == sgs.ConfirmDamage and data:toDamage().card:isKindOf("Slash") and
+                    data:toDamage().card:getNumber() == player:getMark("qiangwu")
+             then
+                -- =点数的杀，伤害值+1
+                local damage = data:toDamage()
+                damage.damage = damage.damage + 1
+                data:setValue(damage)
+                local msg = sgs.LogMessage()
+                msg.type = "$qiangwu_addDamage"
+                msg.from = player
+                msg.arg = "qiangwu"
+                msg.card_str = damage.card:toString()
+                msg.arg2 = "+1"
+                room:sendLog(msg)
             end
         end
         return ""
-    end,
-    on_cost = function(self, event, room, player, data, ask_who)
-        return player:hasShownSkill(self:objectName()) and true or false
-    end,
-    on_effect = function(self, event, room, player, data, ask_who)
-        -- 以下判断在can_trigger已写
-        if event == sgs.EventPhaseStart then
-            -- 回合结束，mark置零
-            room:setPlayerMark(player, self:objectName(), 0)
-        elseif event == sgs.PreCardUsed then
-            -- >=点数的杀，不计入次数限制
-            local use = data:toCardUse()
-            room:addPlayerHistory(player, use.card:getClassName(), -1)
-            use.m_addHistory = false
-            data:setValue(use)
-        elseif event == sgs.ConfirmDamage then
-            -- =点数的杀，伤害值+1
-            local damage = data:toDamage()
-            damage.damage = damage.damage + 1
-            data:setValue(damage)
-            local msg = sgs.LogMessage()
-            msg.type = "$qiangwu_addDamage"
-            msg.from = player
-            msg.arg = "qiangwu"
-            msg.card_str = damage.card:toString()
-            msg.arg2 = "+1"
-            room:sendLog(msg)
-        end
-        return false
     end
 }
 qiangwu_mod =
     sgs.CreateTargetModSkill {
     name = "#qiangwu_mod",
     distance_limit_func = function(self, player, card)
-        local n = player:getMark("qiangwu")
-        if n ~= 0 and card:getNumber() ~= 0 and card:getNumber() <= n then
+        if player:getMark("qiangwu") > 0 and card:getNumber() > 0 and card:getNumber() <= player:getMark("qiangwu") then
             return 732
         end
         return 0
@@ -345,8 +359,7 @@ qiangwu_mod =
     -- 用History才能实现技能中描述的不计次数限制，只用这种的话，先用了>=的牌，再用<的则不可以，就是计入了次数了
     -- 但也必须写这个，不然用了<的，再用>=的又不能再用了
     residue_func = function(self, player, card)
-        local n = player:getMark("qiangwu")
-        if n ~= 0 and card:getNumber() ~= 0 and card:getNumber() >= n then
+        if player:getMark("qiangwu") > 0 and card:getNumber() > 0 and card:getNumber() >= player:getMark("qiangwu") then
             return 732
         end
         return 0
