@@ -1,9 +1,11 @@
-extension = sgs.Package("yjcm", sgs.Package_GeneralPack)
+yjcm = sgs.Package("yjcm", sgs.Package_GeneralPack)
 sgs.LoadTranslationTable {
     ["yjcm"] = "一将成名"
 }
 -- 张春华
-zhangchunhua = sgs.General(extension, "zhangchunhua", "wei", "3", false, true)
+zhangchunhua = sgs.General(yjcm, "zhangchunhua", "wei", "3", false, true)
+-- 珠联璧合：司马懿
+zhangchunhua:addCompanion("simayi")
 -- 绝情：锁定技，你即将造成或受到的伤害均视为失去体力，此时若你手牌不为空，需弃置一张手牌。
 jueqing =
     sgs.CreateTriggerSkill {
@@ -17,17 +19,14 @@ jueqing =
         return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        if player:hasShownSkill(self:objectName()) or player:askForSkillInvoke(self:objectName(), data) then
-            room:sendCompulsoryTriggerLog(player, self:objectName(), true)
-            room:broadcastSkillInvoke(self:objectName())
-            return true
-        end
-        return false
+        return player:hasShownSkill(self:objectName()) or player:askForSkillInvoke(self:objectName(), data)
     end,
     on_effect = function(self, event, room, player, data, ask_who)
+        room:sendCompulsoryTriggerLog(player, self:objectName(), true)
+        room:broadcastSkillInvoke(self:objectName())
         if not player:isKongcheng() then
-            -- 第五个参数表示是否可以选择，false不可选择，必须弃置
-            room:askForDiscard(player, self:objectName(), 1, 1, false, false)
+            -- 弃置者，原因，弃牌数，最小数，[是否可取消=false，是否包括装备=false，提示语=null，是否显示技能发动效果=false]
+            room:askForDiscard(player, self:objectName(), 1, 1, false, false, nil, true)
         end
         room:loseHp(data:toDamage().to, data:toDamage().damage)
         -- 取消原效果，改为体力流失，返回true
@@ -51,16 +50,14 @@ shangshi =
          then
             return self:objectName()
         end
+        return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        if player:askForSkillInvoke(self:objectName()) then
-            room:broadcastSkillInvoke(self:objectName())
-            return true
-        end
-        return false
+        return player:askForSkillInvoke(self:objectName())
     end,
     on_effect = function(self, event, room, player, data, ask_who)
-        player:drawCards(player:getLostHp() * 2 - player:getHandcardNum(), self:objectName())
+        room:broadcastSkillInvoke(self:objectName())
+        room:drawCards(player, player:getLostHp() * 2 - player:getHandcardNum(), self:objectName())
         return false
     end
 }
@@ -80,4 +77,4 @@ sgs.LoadTranslationTable {
     ["$shangshi1"] = "身伤易愈，心伤难合。",
     ["$shangshi2"] = "心随情碎，情随伤逝。"
 }
-return {extension}
+return {yjcm}

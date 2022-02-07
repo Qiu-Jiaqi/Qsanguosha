@@ -1,10 +1,10 @@
-extension = sgs.Package("sp3", sgs.Package_GeneralPack)
+sp3 = sgs.Package("sp3", sgs.Package_GeneralPack)
 sgs.LoadTranslationTable {
     ["sp3"] = "sp3"
 }
 -- 马云禄
-mayunlu = sgs.General(extension, "mayunlu", "shu", "4", false, true)
--- 珠联璧合
+mayunlu = sgs.General(sp3, "mayunlu", "shu", "4", false, true)
+-- 珠联璧合：马超、赵云
 mayunlu:addCompanion("machao")
 mayunlu:addCompanion("zhaoyun")
 -- 马术：锁定技，你与其他角色距离-1。
@@ -21,11 +21,11 @@ fengpo =
     sgs.CreateTriggerSkill {
     name = "fengpo",
     events = {sgs.TargetConfirmed, sgs.ConfirmDamage, sgs.BuryVictim},
-    -- 加伤害后的计算伤害点数和杀死角色后升级技能的标记放到这里，大量精简了代码
     on_record = function(self, event, room, player, data)
         local mayunlu = room:findPlayerBySkillName(self:objectName())
         if mayunlu and mayunlu:isAlive() and mayunlu:hasShownSkill(self:objectName()) then
-            if event == sgs.ConfirmDamage and player:getMark("@fengpo_addDamage") > 0 then
+            if event == sgs.ConfirmDamage and player:getMark("fengpo_addDamage") > 0 then
+                -- 加伤害时计算伤害
                 room:sendCompulsoryTriggerLog(mayunlu, self:objectName(), true)
                 local damage = data:toDamage()
                 local msg = sgs.LogMessage()
@@ -33,17 +33,18 @@ fengpo =
                 msg.from = mayunlu
                 msg.arg = self:objectName()
                 msg.card_str = damage.card:toString()
-                msg.arg2 = "+" .. player:getMark("@fengpo_addDamage")
+                msg.arg2 = "+" .. player:getMark("fengpo_addDamage")
                 room:sendLog(msg)
-                damage.damage = damage.damage + player:getMark("@fengpo_addDamage")
-                player:setMark("@fengpo_addDamage", 0)
+                damage.damage = damage.damage + player:getMark("fengpo_addDamage")
+                player:setMark("fengpo_addDamage", 0)
                 data:setValue(damage)
             elseif
                 event == sgs.BuryVictim and data:toDeath().damage.from == mayunlu and
-                    mayunlu:getMark("@fengpo_upgrade") == 0
+                    mayunlu:getMark("fengpo_upgrade") == 0
              then
+                -- 游戏内第一次杀角色时加标记
                 room:sendCompulsoryTriggerLog(mayunlu, self:objectName(), true)
-                mayunlu:addMark("@fengpo_upgrade")
+                mayunlu:addMark("fengpo_upgrade")
                 local msg = sgs.LogMessage()
                 msg.type = "$fengpo_upgrade"
                 msg.from = mayunlu
@@ -71,9 +72,9 @@ fengpo =
         room:broadcastSkillInvoke(self:objectName())
         local target = data:toCardUse().to:at(0)
         room:showAllCards(target, player)
-        local choices = {"draw", "damage"}
+        local choices = {"draw", "addDamage"}
         local x = 0
-        if player:getMark("@fengpo_upgrade") == 0 then
+        if player:getMark("fengpo_upgrade") == 0 then
             for _, card in sgs.qlist(target:getHandcards()) do
                 if card:getSuit() == sgs.Card_Diamond then
                     x = x + 1
@@ -88,10 +89,10 @@ fengpo =
         end
         local choice = room:askForChoice(player, self:objectName(), table.concat(choices, "+"))
         if choice == "draw" then
-            player:drawCards(x, self:objectName())
-        elseif choice == "damage" then
+            room:drawCards(player, x, self:objectName())
+        elseif choice == "addDamage" then
             -- 存数字的话，直接用mark好了，存其它再用tag
-            player:setMark("@fengpo_addDamage", x)
+            player:setMark("fengpo_addDamage", x)
         end
         return false
     end
@@ -109,8 +110,8 @@ sgs.LoadTranslationTable {
     ["$fengpo1"] = "等我提枪上马，打你个落花流水。",
     ["$fengpo2"] = "对付你，用不着我家哥哥亲自上阵。",
     ["fengpo:draw"] = "摸X张牌",
-    ["fengpo:damage"] = "你使用此牌造成的伤害+X",
+    ["fengpo:addDamage"] = "你使用此牌造成的伤害+X",
     ["$fengpo_addDamage"] = "%from 执行了“%arg”的效果，%card 伤害值 %arg2",
     ["$fengpo_upgrade"] = "%from 杀死了 %to，%from 在本局游戏内杀死过角色，“%arg”技能描述中的X修改为其红色手牌数"
 }
-return {extension}
+return {sp3}

@@ -1,9 +1,9 @@
-extension = sgs.Package("yjcm5", sgs.Package_GeneralPack)
+yjcm5 = sgs.Package("yjcm5", sgs.Package_GeneralPack)
 sgs.LoadTranslationTable {
     ["yjcm5"] = "一将成名5"
 }
 -- 曹叡
-caorui = sgs.General(extension, "caorui", "wei", "3", true, true)
+caorui = sgs.General(yjcm5, "caorui", "wei", "3", true, true)
 -- 恢拓：每当你受到伤害后，你可以令一名角色进行判定，若结果为红色，该角色回复1点体力；若结果为黑色，该角色摸X张牌。（X为此次伤害的伤害值）
 huituo =
     sgs.CreateTriggerSkill {
@@ -17,7 +17,7 @@ huituo =
     end,
     on_cost = function(self, event, room, player, data, ask_who)
         local target =
-            room:askForPlayerChosen(player, room:getAlivePlayers(), self:objectName(), "@huituo_target", true, true)
+            room:askForPlayerChosen(player, room:getAlivePlayers(), self:objectName(), "#huituo_invoke", true, true)
         if target then
             player:showSkill(self:objectName())
             room:broadcastSkillInvoke(self:objectName())
@@ -32,7 +32,6 @@ huituo =
             else
                 room:drawCards(target, data:toDamage().damage, self:objectName())
             end
-            return true
         end
         return false
     end
@@ -54,7 +53,7 @@ mingjian_card =
             ),
             false
         )
-        targets[1]:addMark("@mingjian")
+        targets[1]:addMark("mingjian_target")
     end
 }
 mingjian_vs =
@@ -76,9 +75,9 @@ mingjian =
     events = sgs.EventPhaseStart,
     view_as_skill = mingjian_vs,
     can_trigger = function(self, event, room, player, data)
-        if player:getMark("@mingjian") ~= 0 and player:getPhase() == sgs.Player_NotActive then
-            -- 明鉴角色回合结束清除明鉴标记
-            player:setMark("@mingjian", 0)
+        if player:getMark("mingjian_target") > 0 and player:getPhase() == sgs.Player_NotActive then
+            -- 明鉴角色回合外阶段开始，清除明鉴标记
+            player:setMark("mingjian_target", 0)
         end
         return ""
     end
@@ -87,14 +86,14 @@ mingjian_maxcard =
     sgs.CreateMaxCardsSkill {
     name = "#mingjian_maxcard",
     extra_func = function(self, player)
-        return player:getMark("@mingjian")
+        return player:getMark("mingjian_target")
     end
 }
 mingjian_mod =
     sgs.CreateTargetModSkill {
     name = "#mingjian_mod",
     residue_func = function(self, player, card)
-        return player:getMark("@mingjian")
+        return player:getMark("mingjian_target")
     end
 }
 -- 兴衰：限定技，当你进入濒死状态时可以发动，若此时场上明置角色中每有一名与你势力相同的其他角色存活，
@@ -106,24 +105,22 @@ xingshuai =
     events = sgs.Dying,
     limit_mark = "@xingshuai",
     can_trigger = function(self, event, room, player, data)
-        if data:toDying().who:hasSkill(self:objectName()) and player:getMark("@xingshuai") ~= 0 then
+        if data:toDying().who:hasSkill(self:objectName()) and player:getMark("@xingshuai") > 0 then
             return self:objectName()
         end
         return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        if player:askForSkillInvoke(self:objectName(), data) then
-            room:broadcastSkillInvoke(self:objectName())
-            -- 播放限定技动画
-            room:doSuperLightbox("caorui", self:objectName())
-            return true
-        end
-        return false
+        return player:askForSkillInvoke(self:objectName(), data)
     end,
     on_effect = function(self, event, room, player, data, ask_who)
+        room:broadcastSkillInvoke(self:objectName())
+        -- 播放限定技动画
+        room:doSuperLightbox("caorui", self:objectName())
         for _, other in sgs.qlist(room:getOtherPlayers(player)) do
             if other:isFriendWith(player) then
                 if not player:isWounded() then
+                    -- 增加体力上限，需要设置PlayerProperty
                     room:setPlayerProperty(player, "maxhp", player:getMaxHp() + 1)
                     local msg = sgs.LogMessage()
                     msg.type = "$xingshuai_addmaxhp"
@@ -137,6 +134,7 @@ xingshuai =
                 room:damage(sgs.DamageStruct(self:objectName(), nil, other, 1, sgs.DamageStruct_Normal))
             end
         end
+        -- 这里也需要用room设置mark
         room:setPlayerMark(player, "@xingshuai", 0)
         return false
     end
@@ -145,7 +143,7 @@ caorui:addSkill(huituo)
 caorui:addSkill(mingjian)
 caorui:addSkill(mingjian_maxcard)
 caorui:addSkill(mingjian_mod)
-sgs.insertRelatedSkills(extension, mingjian, mingjian_maxcard, mingjian_mod)
+sgs.insertRelatedSkills(yjcm5, mingjian, mingjian_maxcard, mingjian_mod)
 caorui:addSkill(xingshuai)
 sgs.LoadTranslationTable {
     ["caorui"] = "曹叡",
@@ -156,7 +154,7 @@ sgs.LoadTranslationTable {
     [":huituo"] = "每当你受到伤害后，你可以令一名角色进行判定，若结果为红色，该角色回复1点体力；若结果为黑色，该角色摸X张牌。（X为此次伤害的伤害值）",
     ["$huituo1"] = "大展宏图，就在今日！",
     ["$huituo2"] = "复我大魏，扬我国威！",
-    ["@huituo_target"] = "你可以发动“恢拓”，选择一名角色。",
+    ["#huituo_invoke"] = "你可以发动“恢拓”，选择一名角色。",
     ["mingjian"] = "明鉴",
     [":mingjian"] = "出牌阶段限一次，你可以将所有手牌交给一名其他角色，然后该角色下回合的手牌上限+1，且出牌阶段内可以额外使用一张【杀】。",
     ["$mingjian1"] = "你我推心置腹，岂能相负？",
@@ -167,4 +165,4 @@ sgs.LoadTranslationTable {
     ["$xingshuai2"] = "聚群臣而嘉勋，隆天子之气运！",
     ["$xingshuai_addmaxhp"] = "%from 增加了 %arg 点体力上限"
 }
-return {extension}
+return {yjcm5}

@@ -1,50 +1,39 @@
-extension = sgs.Package("sp2", sgs.Package_GeneralPack)
+sp2 = sgs.Package("sp2", sgs.Package_GeneralPack)
+sgs.LoadTranslationTable {
+    ["sp2"] = "sp2"
+}
 -- bug：影箭发动会播放两次台词。还不知道为何，试过改变使用技能卡的地方，还是不行
 -- 孙茹
-sunru = sgs.General(extension, "sunru", "wu", "3", false, true)
+sunru = sgs.General(sp2, "sunru", "wu", "3", false, true)
+-- 珠联璧合：陆逊
+sunru:addCompanion("luxun")
 -- 影箭：准备阶段开始时，你可以视为使用一张无距离限制的【杀】。
-yingjianCard =
+yingjian_card =
     sgs.CreateSkillCard {
     name = "yingjian",
-    -- filtet：默认为一名“其他玩家”
     filter = function(self, targets, to_select, Self)
-        if #targets == 0 then
-            -- false 表示无视距离限制
-            if sgs.Self:canSlash(to_select, false) then
-                return true
-            end
-        end
-        return false
-    end,
-    -- feasible：默认为target_fixed == true或选择了至少一名玩家为目标，此处可不写的
-    feasible = function(self, targets, Self)
-        return #targets == 1
+        -- canSlash中的false表示无视距离限制
+        return #targets == 0 and sgs.Self:canSlash(to_select, false)
     end,
     on_use = function(self, room, source, targets)
         local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
         slash:setSkillName("_" .. self:objectName())
         room:useCard(sgs.CardUseStruct(slash, source, targets[1]))
     end
-    -- 使用tag存储数据
-    -- on_use = function(self, room, source, targets)
-    --     local target = sgs.QVariant()
-    --     target:setValue(targets[1])
-    --     room:setTag(self:objectName(), target)
-    -- end
 }
-yingjianVS =
+yingjian_vs =
     sgs.CreateZeroCardViewAsSkill {
     name = "yingjian",
     response_pattern = "@@yingjian",
     view_as = function(self)
-        return yingjianCard:clone()
+        return yingjian_card:clone()
     end
 }
 yingjian =
     sgs.CreateTriggerSkill {
     name = "yingjian",
-    events = {sgs.EventPhaseStart},
-    view_as_skill = yingjianVS,
+    events = sgs.EventPhaseStart,
+    view_as_skill = yingjian_vs,
     can_trigger = function(self, event, room, player, data)
         if
             player and player:isAlive() and player:hasSkill(self:objectName()) and player:getPhase() == sgs.Player_Start and
@@ -55,54 +44,15 @@ yingjian =
         return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        return room:askForUseCard(player, "@@yingjian", "@yingjian_invoke")
+        return room:askForUseCard(player, "@@yingjian", "#yingjian_invoke")
     end
-    -- 使用tag获取存储的数据
-    -- on_effect = function(self, event, room, player, data, ask_who)
-    --     local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
-    --     slash:setSkillName("_" .. self:objectName())
-    --     room:useCard(sgs.CardUseStruct(slash, player, room:getTag(self:objectName()):toPlayer()), false)
-    --     room:removeTag(self:objectName())
-    --     return false
-    -- end
 }
--- 使用CreatePhaseChangeSkill创建阶段转换触发技，events不用写，但on_phasechange必须重写
--- yingjian =
---     sgs.CreatePhaseChangeSkill {
---     name = "yingjian",
---     view_as_skill = yingjianVS,
---     can_trigger = function(self, event, room, player, data)
---         if
---             player and player:isAlive() and player:hasSkill(self:objectName()) and
---                 player:getPhase() == sgs.Player_Start and
---                 sgs.Slash_IsAvailable(player)
---          then
---             return self:objectName()
---         end
---         return ""
---     end,
---     on_cost = function(self, event, room, player, data, ask_who)
---         return room:askForUseCard(player, "@@yingjian", "@yingjian_invoke")
---     end,
---     on_phasechange = function(self, player)
---         return false
---     end
--- }
--- 目标修改技，也可以不要啦,直接在技能卡里判断就好
--- yingjianMod =
---     sgs.CreateTargetModSkill {
---     name = "#yingjian-slash",
---     distance_limit_func = function(self, player, card)
---         return card:getSkillName() == "yingjian" and 1000 or 0
---     end
--- }
-
 -- 释衅：锁定技，每当你受到火焰伤害时，防止此伤害。
 shixin =
     sgs.CreateTriggerSkill {
     name = "shixin",
     frequency = sgs.Skill_Compulsory,
-    events = {sgs.DamageInflicted},
+    events = sgs.DamageInflicted,
     can_trigger = function(self, event, room, player, data)
         if
             player and player:isAlive() and player:hasSkill(self:objectName()) and
@@ -113,14 +63,11 @@ shixin =
         return ""
     end,
     on_cost = function(self, event, room, player, data, ask_who)
-        if player:hasShownSkill(self:objectName()) or player:askForSkillInvoke(self:objectName(), data) then
-            room:sendCompulsoryTriggerLog(player, self:objectName(), true)
-            room:broadcastSkillInvoke(self:objectName())
-            return true
-        end
-        return false
+        return player:hasShownSkill(self:objectName()) or player:askForSkillInvoke(self:objectName(), data)
     end,
     on_effect = function(self, event, room, player, data, ask_who)
+        room:sendCompulsoryTriggerLog(player, self:objectName(), true)
+        room:broadcastSkillInvoke(self:objectName())
         local msg = sgs.LogMessage()
         msg.type = "$shixin_protect"
         msg.from = player
@@ -131,23 +78,21 @@ shixin =
     end
 }
 sunru:addSkill(yingjian)
--- sunru:addSkill(yingjianMod)
 sunru:addSkill(shixin)
 sgs.LoadTranslationTable {
-    ["stars"] = "sp2",
     ["sunru"] = "孙茹",
     ["&sunru"] = "孙茹",
     ["#sunru"] = "出水青莲",
     ["~sunru"] = "佑我江东，虽死无怨。",
     ["yingjian"] = "影箭",
     [":yingjian"] = "准备阶段开始时，你可以视为使用一张无距离限制的【杀】。",
-    ["@yingjian_invoke"] = "你可以发动“影箭”，视为使用一张无距离限制的【杀】。",
     ["$yingjian1"] = "翩翩一云端，仿若桃花仙。",
     ["$yingjian2"] = "没牌，又有何不可能的？",
+    ["#yingjian_invoke"] = "你可以发动“影箭”，视为使用一张无距离限制的【杀】。",
     ["shixin"] = "释衅",
     [":shixin"] = "锁定技，每当你受到火焰伤害时，防止此伤害。",
     ["$shixin1"] = "释怀之戾气，化君之不悦。",
     ["$shixin2"] = "薪薪之火，安能伤我？",
     ["$shixin_protect"] = "%from 防止了 %arg 点 %arg2 伤害"
 }
-return {extension}
+return {sp2}

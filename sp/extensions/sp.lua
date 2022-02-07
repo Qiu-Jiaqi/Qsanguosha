@@ -1,9 +1,11 @@
-extension = sgs.Package("sp", sgs.Package_GeneralPack)
+sp = sgs.Package("sp", sgs.Package_GeneralPack)
 sgs.LoadTranslationTable {
     ["sp"] = "sp"
 }
 -- 戏志才
-xizhicai = sgs.General(extension, "xizhicai", "wei", "3", true, true)
+xizhicai = sgs.General(sp, "xizhicai", "wei", "3", true, true)
+-- 珠联璧合：郭嘉
+xizhicai:addCompanion("guojia")
 -- 天妒：当你的判定结果确定后，你可获得判定牌。
 tiandu_xizhicai =
     sgs.CreateTriggerSkill {
@@ -44,12 +46,12 @@ xianfu =
                 player,
                 room:getOtherPlayers(player),
                 self:objectName(),
-                "@xianfu_choose",
+                "#xianfu_choose",
                 false,
                 true
             )
             -- 标记先辅选择的角色
-            target:addMark("@xianfu")
+            target:addMark("xianfu_target")
             -- 使用标记，记录已发动
             player:addMark(self:objectName())
         end
@@ -57,7 +59,7 @@ xianfu =
     can_trigger = function(self, event, room, player, data)
         local xizhicai = room:findPlayerBySkillName(self:objectName())
         -- 这里原来用player判断，会导致戏志才死后，先辅的角色受伤或回血就不断触发技能，可能是返回了空，ask_who变成了触发者
-        if event ~= sgs.GeneralShown and xizhicai and xizhicai:isAlive() and player:getMark("@xianfu") > 0 then
+        if event ~= sgs.GeneralShown and xizhicai and xizhicai:isAlive() and player:getMark("xianfu_target") > 0 then
             return self:objectName(), xizhicai
         end
         return ""
@@ -82,32 +84,6 @@ xianfu =
         return false
     end
 }
--- 使用on_record函数代替
--- xianfu_target =
---     sgs.CreateTriggerSkill {
---     name = "#xianfu_target",
---     frequency = sgs.Skill_Compulsory,
---     events = sgs.GeneralShown,
---     can_trigger = function(self, event, room, player, data)
---         -- 使用标记检查是否未发动
---         if player and player:isAlive() and player:hasShownSkill("xianfu") and player:getMark(self:objectName()) == 0 then
---             return self:objectName()
---         end
---         return ""
---     end,
---     on_effect = function(self, event, room, player, data, ask_who)
---         room:sendCompulsoryTriggerLog(player, "xianfu", true)
---         room:broadcastSkillInvoke("xianfu")
---         -- 第五个参数false表示必须选择
---         local target =
---             room:askForPlayerChosen(player, room:getOtherPlayers(player), "xianfu", "@xianfu_choose", false, true)
---         -- 标记先辅选择的角色
---         target:addMark("@xianfu")
---         -- 使用标记，记录已发动
---         player:addMark(self:objectName())
---         return false
---     end
--- }
 -- 筹策：当你受到1点伤害后，你可以判定，若结果为：黑色，你弃置一名角色区域里的一张牌；红色，你令一名角色摸一张牌（先辅的角色摸两张）。
 chouce =
     sgs.CreateMasochismSkill {
@@ -134,10 +110,10 @@ chouce =
         room:judge(judge)
         if judge.card:isRed() then
             local target =
-                room:askForPlayerChosen(player, room:getAlivePlayers(), self:objectName(), "@chouce_draw", true, true)
+                room:askForPlayerChosen(player, room:getAlivePlayers(), self:objectName(), "#chouce_draw", true, true)
             if target then
                 -- 若为先辅选择的角色
-                if target:getMark("@xianfu") > 0 then
+                if target:getMark("xianfu_target") > 0 then
                     room:drawCards(target, 2, self:objectName())
                 else
                     room:drawCards(target, 1, self:objectName())
@@ -146,32 +122,21 @@ chouce =
         else
             local targets = sgs.SPlayerList()
             for _, p in sgs.qlist(room:getAlivePlayers()) do
-                -- if not p:isAllNude() then
-                -- 这里还是用能否弃置判断较直观
                 if player:canDiscard(p, "hej") then
                     targets:append(p)
                 end
             end
-            local target = room:askForPlayerChosen(player, targets, self:objectName(), "@chouce_discard", true, true)
+            local target = room:askForPlayerChosen(player, targets, self:objectName(), "#chouce_discard", true, true)
             if target then
-                -- 不能用这个函数，这个是目标选择弃置手牌和装备牌，最后的true表示包括装备牌
-                -- room:askForDiscard(target, self:objectName(), 1, 1, false, true)
-                -- 参数：（目标，原因，弃牌数，最小弃牌数，是否强制弃牌，是否包括装备，提示信息）
-                local id = -- 询问选择弃置的牌，包括手牌、装备区牌、判定区牌
+                local card_id =
                     room:askForCardChosen(player, target, "hej", self:objectName(), false, sgs.Card_MethodDiscard)
-                -- 参数：（选择者，弃置目标，区域，原因，手牌是否可见，处理方法，不能选择的牌id列表）
-                room:throwCard(id, target, player, self:objectName())
+                room:throwCard(card_id, target, player, self:objectName())
             end
         end
     end
 }
 xizhicai:addSkill(tiandu_xizhicai)
 xizhicai:addSkill(xianfu)
--- 已合并到一个技能里面
--- xizhicai:addSkill(xianfu_target)
--- 组合技能，这里开始不会用，花了太多时间摸索
--- sgs.insertRelatedSkills(extension, xianfu, xianfu_target)
--- extension:insertRelatedSkills("xianfu", "#xianfu_target")
 xizhicai:addSkill(chouce)
 sgs.LoadTranslationTable {
     ["xizhicai"] = "戏志才",
@@ -187,17 +152,19 @@ sgs.LoadTranslationTable {
     [":xianfu"] = "锁定技，亮将时，你选择一名其他角色，当其受到伤害后，你受到等量的伤害，当其回复体力后，你回复等量的体力。",
     ["$xianfu1"] = "辅佐明君，从一而终。",
     ["$xianfu2"] = "吾于此生，竭尽所能。",
-    ["@xianfu_choose"] = "发动“先辅”，选择一名其他角色。",
-    ["@xianfu"] = "先辅",
+    ["#xianfu_choose"] = "发动“先辅”，选择一名其他角色。",
     ["chouce"] = "筹策",
     [":chouce"] = "当你受到1点伤害后，你可以判定，若结果为：黑色，你弃置一名角色区域里的一张牌；红色，你令一名角色摸一张牌（先辅的角色摸两张）。",
     ["$chouce1"] = "一筹一划，一策一略。",
     ["$chouce2"] = "主公之忧，吾之所思也。",
-    ["@chouce_draw"] = "你可以发动“筹策”，选择一名角色，令其摸一张牌（先辅的角色摸两张）。",
-    ["@chouce_discard"] = "你可以发动“筹策”，选择一名角色，弃置其区域里的一张牌。"
+    ["#chouce_draw"] = "你可以发动“筹策”，选择一名角色，令其摸一张牌（先辅的角色摸两张）。",
+    ["#chouce_discard"] = "你可以发动“筹策”，选择一名角色，弃置其区域里的一张牌。"
 }
 -- 张星彩
-zhangxingcai = sgs.General(extension, "zhangxingcai", "shu", "3", false, true)
+zhangxingcai = sgs.General(sp, "zhangxingcai", "shu", "3", false, true)
+-- 珠联璧合：刘禅、张飞
+zhangxingcai:addCompanion("liushan")
+zhangxingcai:addCompanion("zhangfei")
 -- 甚贤：每当一名其他角色于你的回合外因弃置而失去基本牌后，你可以摸一张牌。
 --       我吐了，整了一早上，反正我是吐了，卡牌移动原因的结构体，什么鬼作用都没有的，用不了，一早上白白浪费时间
 -- shenxian =
@@ -240,15 +207,15 @@ zhangxingcai = sgs.General(extension, "zhangxingcai", "shu", "3", false, true)
 --     end
 -- }
 -- 放弃了，改技能呗
--- 甚贤：每当一名其他角色在其回合内造成过伤害，你可以摸一张牌。
+-- 甚贤：一名其他角色回合结束时，若其在此回合内造成过伤害，你可以摸一张牌。
 shenxian =
     sgs.CreateTriggerSkill {
     name = "shenxian",
     events = {sgs.Damage, sgs.EventPhaseEnd},
-    -- 记录就用专门的函数来记录，判断就做好判断的事
     on_record = function(self, event, room, player, data)
         local zhangxingcai = room:findPlayerBySkillName(self:objectName())
         if event == sgs.Damage and zhangxingcai and zhangxingcai:isAlive() and player ~= zhangxingcai then
+            -- 若其造成伤害，设置标志
             player:setFlags(self:objectName())
         end
     end,
@@ -259,6 +226,7 @@ shenxian =
                 player:getPhase() == sgs.Player_Finish and
                 player:hasFlag(self:objectName())
          then
+            -- 若存在标志则可以触发
             return self:objectName(), zhangxingcai
         end
         return ""
@@ -268,7 +236,7 @@ shenxian =
     end,
     on_effect = function(self, event, room, player, data, ask_who)
         room:broadcastSkillInvoke(self:objectName())
-        ask_who:drawCards(1, self:objectName())
+        room:drawCards(ask_who, 1, self:objectName())
         return false
     end
 }
@@ -284,11 +252,10 @@ qiangwu_card =
         judge.reason = self:objectName()
         judge.play_animation = false
         room:judge(judge)
-        room:setPlayerMark(source, "qiangwu", judge.card:getNumber())
+        room:setPlayerMark(source, "qiangwu_num", judge.card:getNumber())
         -- bug：想不明白，为什么用player的不行，但是>=的能不计入次数，说明触发技可以，后面的两招目标修改技不可以
         -- 推测是视为技在客户端，而目标修改技注册在服务器的原因
-        -- room的使用@标记会有图标，这里还是先不要了
-        -- source:setMark("qiangwu", judge.card:getNumber())
+        -- source:setMark("qiangwu_num", judge.card:getNumber())
     end
 }
 qiangwu_vs =
@@ -297,7 +264,6 @@ qiangwu_vs =
     view_as = function(self)
         local card = qiangwu_card:clone()
         card:setSkillName(self:objectName())
-        -- 用于亮将
         card:setShowSkill(self:objectName())
         return card
     end,
@@ -312,15 +278,13 @@ qiangwu =
     events = {sgs.EventPhaseStart, sgs.PreCardUsed, sgs.ConfirmDamage},
     -- 这里其实是on_record的任务，做一些标记，相当于锁定技，不需要询问发动，但can_trigger需要返回空，直接合起来了
     can_trigger = function(self, event, room, player, data)
-        if player and player:isAlive() and player:hasShownSkill(self:objectName()) and player:getMark("qiangwu") > 0 then
+        if player and player:isAlive() and player:hasShownSkill(self:objectName()) and player:getMark("qiangwu_num") > 0 then
             if event == sgs.EventPhaseStart and player:getPhase() == sgs.Player_NotActive then
-                -- bug：player的不行
-                -- player:setMark("qiangwu", 0)
-                -- 回合结束，mark置零
-                room:setPlayerMark(player, "qiangwu", 0)
+                -- 回合外阶段开始，mark置零
+                room:setPlayerMark(player, "qiangwu_num", 0)
             elseif
                 event == sgs.PreCardUsed and data:toCardUse().card:isKindOf("Slash") and
-                    data:toCardUse().card:getNumber() >= player:getMark("qiangwu")
+                    data:toCardUse().card:getNumber() >= player:getMark("qiangwu_num")
              then
                 -- >=点数的杀，不计入次数限制
                 local use = data:toCardUse()
@@ -329,7 +293,7 @@ qiangwu =
                 data:setValue(use)
             elseif
                 event == sgs.ConfirmDamage and data:toDamage().card:isKindOf("Slash") and
-                    data:toDamage().card:getNumber() == player:getMark("qiangwu")
+                    data:toDamage().card:getNumber() == player:getMark("qiangwu_num")
              then
                 -- =点数的杀，伤害值+1
                 local damage = data:toDamage()
@@ -338,7 +302,7 @@ qiangwu =
                 local msg = sgs.LogMessage()
                 msg.type = "$qiangwu_addDamage"
                 msg.from = player
-                msg.arg = "qiangwu"
+                msg.arg = self:objectName()
                 msg.card_str = damage.card:toString()
                 msg.arg2 = "+1"
                 room:sendLog(msg)
@@ -351,7 +315,10 @@ qiangwu_mod =
     sgs.CreateTargetModSkill {
     name = "#qiangwu_mod",
     distance_limit_func = function(self, player, card)
-        if player:getMark("qiangwu") > 0 and card:getNumber() > 0 and card:getNumber() <= player:getMark("qiangwu") then
+        if
+            player:getMark("qiangwu_num") > 0 and card:getNumber() > 0 and
+                card:getNumber() <= player:getMark("qiangwu_num")
+         then
             return 732
         end
         return 0
@@ -359,7 +326,10 @@ qiangwu_mod =
     -- 用History才能实现技能中描述的不计次数限制，只用这种的话，先用了>=的牌，再用<的则不可以，就是计入了次数了
     -- 但也必须写这个，不然用了<的，再用>=的又不能再用了
     residue_func = function(self, player, card)
-        if player:getMark("qiangwu") > 0 and card:getNumber() > 0 and card:getNumber() >= player:getMark("qiangwu") then
+        if
+            player:getMark("qiangwu_num") > 0 and card:getNumber() > 0 and
+                card:getNumber() >= player:getMark("qiangwu_num")
+         then
             return 732
         end
         return 0
@@ -368,7 +338,7 @@ qiangwu_mod =
 zhangxingcai:addSkill(shenxian)
 zhangxingcai:addSkill(qiangwu)
 zhangxingcai:addSkill(qiangwu_mod)
-sgs.insertRelatedSkills(extension, qiangwu, qiangwu_mod)
+sgs.insertRelatedSkills(sp, qiangwu, qiangwu_mod)
 sgs.LoadTranslationTable {
     ["zhangxingcai"] = "张星彩",
     ["&zhangxingcai"] = "张星彩",
@@ -376,7 +346,7 @@ sgs.LoadTranslationTable {
     ["~zhangxingcai"] = "复兴汉室之路，臣妾再也不能陪伴左右。",
     ["shenxian"] = "甚贤",
     -- [":shenxian"] = "每当一名其他角色于你的回合外因弃置而失去基本牌后，你可以摸一张牌。",
-    [":shenxian"] = "每当一名其他角色在其回合内造成过伤害，你可以摸一张牌。",
+    [":shenxian"] = "一名其他角色回合结束时，若其在此回合内造成过伤害，你可以摸一张牌。",
     ["$shenxian1"] = "抚慰军心，以安国事。",
     ["$shenxian2"] = "愿尽己力，为君分忧。",
     ["qiangwu"] = "枪舞",
@@ -385,4 +355,4 @@ sgs.LoadTranslationTable {
     ["$qiangwu2"] = "父亲未竟之业，由我继续！",
     ["$qiangwu_addDamage"] = "%from 执行了“%arg”的效果，%card 伤害值 %arg2"
 }
-return {extension}
+return {sp}
