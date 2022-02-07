@@ -61,9 +61,9 @@ shibei =
         return player:hasShownSkill(self:objectName()) or player:askForSkillInvoke(self:objectName(), data)
     end,
     on_damaged = function(self, player, damage)
+        local room = player:getRoom()
         room:sendCompulsoryTriggerLog(player, self:objectName(), true)
         room:broadcastSkillInvoke(self:objectName())
-        local room = player:getRoom()
         -- 若为本回合第一次发动
         if not player:hasFlag(self:objectName()) then
             local recover = sgs.RecoverStruct()
