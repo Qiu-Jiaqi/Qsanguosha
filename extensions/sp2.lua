@@ -2,7 +2,6 @@ sp2 = sgs.Package("sp2", sgs.Package_GeneralPack)
 sgs.LoadTranslationTable {
     ["sp2"] = "sp2"
 }
--- bug：影箭发动会播放两次台词。还不知道为何，试过改变使用技能卡的地方，还是不行
 -- 孙茹
 sunru = sgs.General(sp2, "sunru", "wu", "3", false, true)
 -- 珠联璧合：陆逊
@@ -11,6 +10,7 @@ sunru:addCompanion("luxun")
 yingjian_card =
     sgs.CreateSkillCard {
     name = "yingjian",
+    mute = true, -- 添加mute参数，关闭自动播放技能配音，重复播放技能配音问题解决
     filter = function(self, targets, to_select, Self)
         -- canSlash中的false表示无视距离限制
         return #targets == 0 and sgs.Self:canSlash(to_select, false)
