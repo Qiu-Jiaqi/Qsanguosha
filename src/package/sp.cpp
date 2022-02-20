@@ -16,9 +16,8 @@ class Fuqi : public TriggerSkill {
             !use.card->isKindOf("Peach") && !use.card->isKindOf("Analeptic")) {
             QList<ServerPlayer *> targets;
             foreach (ServerPlayer *other, room->getOtherPlayers(player)) {
-                if (other->distanceTo(player) == 1) {
+                if (other->distanceTo(player) == 1)
                     targets << other;
-                }
             }
             player->tag["fuqi"] = QVariant::fromValue(targets);
         }
@@ -50,7 +49,8 @@ class Fuqi : public TriggerSkill {
         log.to = targets;
         room->sendLog(log);
         // 加入到不能响应列表
-        foreach (ServerPlayer *target, targets) { use.no_respond_list << target->objectName(); }
+        foreach (ServerPlayer *target, targets)
+            use.no_respond_list << target->objectName();
         data = QVariant::fromValue(use);
         return false;
     }
@@ -76,9 +76,8 @@ class Jiaozi : public TriggerSkill {
         }
     }
     QStringList triggerable(TriggerEvent, Room *, ServerPlayer *player, QVariant &, ServerPlayer *&) const {
-        if (TriggerSkill::triggerable(player) && player->getMark("jiaozi") > 0) {
+        if (TriggerSkill::triggerable(player) && player->getMark("jiaozi") > 0)
             return QStringList(objectName());
-        }
         return QStringList();
     }
     bool cost(TriggerEvent, Room *, ServerPlayer *player, QVariant &data, ServerPlayer *) const {
@@ -94,9 +93,8 @@ class Jiaozi : public TriggerSkill {
         if (event == DamageCaused) {
             log.type = "#jiaozi_doDamage";
             log.to << damage.to;
-        } else {
+        } else
             log.type = "#jiaozi_sufferDamage";
-        }
         log.arg2 = QString::number(++damage.damage);
         room->sendLog(log);
         data = QVariant::fromValue(damage);
@@ -126,9 +124,8 @@ void LianzhuCard::onEffect(const CardEffectStruct &effect) const {
     // 用于ai：记录技能来源
     effect.to->tag["lianzhu_from"] = QVariant::fromValue(effect.from);
     // 若没有弃牌
-    if (!room->askForDiscard(effect.to, "lianzhu", 2, 2, true, true, "lianzhu_discard:" + effect.from->objectName())) {
+    if (!room->askForDiscard(effect.to, "lianzhu", 2, 2, true, true, "lianzhu_discard:" + effect.from->objectName()))
         effect.from->drawCards(2, "lianzhu");
-    }
     effect.to->tag.remove("lianzhu_from");
 }
 // 视为技部分
@@ -240,9 +237,8 @@ class Xiahui : public TriggerSkill {
                     QVariantList limited = loser->tag["xiahui_limited"].toList();
                     foreach (int id, loser->handCards()) {
                         // 若有“黠慧”牌，则不需失去体力
-                        if (limited.contains(id)) {
+                        if (limited.contains(id))
                             return;
-                        }
                     }
                     room->sendCompulsoryTriggerLog(dongbai, objectName());
                     room->loseHp(loser);
@@ -251,10 +247,9 @@ class Xiahui : public TriggerSkill {
         }
         // 以上效果是董白存活时触发，而Hp减少是remove“黠慧”牌的限制，此时董白可能已死或失去技能
         if (event == PostHpReduced && !player->tag["xiahui_limited"].toList().isEmpty()) {
-            foreach (QVariant id, player->tag["xiahui_limited"].toList()) {
+            foreach (QVariant id, player->tag["xiahui_limited"].toList())
                 // 解除限制
                 room->removePlayerCardLimitation(player, "use,response,discard", QString::number(id.value<int>()) + "$0");
-            }
             player->tag.remove("xiahui_limited");
             LogMessage log;
             log.from = dongbai;
@@ -268,9 +263,8 @@ class Xiahui : public TriggerSkill {
         // 只是用来触发未亮将时黑色手牌不计入手牌上限的询问以及提示信息
         if (TriggerSkill::triggerable(player)) {
             if (event == EventPhaseProceeding && player->getPhase() == Player::Discard &&
-                player->hasFlag("xiahui_ignoreBlackHandCards")) {
+                player->hasFlag("xiahui_ignoreBlackHandCards"))
                 return QStringList(objectName());
-            }
         }
         return QStringList();
     }
@@ -288,6 +282,150 @@ class Xiahui : public TriggerSkill {
     }
 };
 
+// 大小乔
+// 星舞：弃牌阶段开始时，你可将一张牌置于你的武将牌上，称为“星舞”牌；
+//     然后你可移去三张“星舞”牌或弃置两张手牌并将武将牌翻面，弃置一名其他角色装备区里的所有牌，然后若其性别为：男性，你对其造成2点伤害；女性，你对其造成1点伤害。。
+// 星舞技能卡
+XingwuCard::XingwuCard() {
+    mute = true;
+    handling_method = Card::MethodNone;
+    will_throw = false;
+}
+void XingwuCard::onEffect(const CardEffectStruct &effect) const {
+    Room *room = effect.from->getRoom();
+    room->broadcastSkillInvoke("xingwu", 3);
+    if (effect.from->getPile("xingwu").contains(subcards.first())) {
+        CardMoveReason reason(CardMoveReason::S_REASON_REMOVE_FROM_PILE, effect.from->objectName(), "xingwu", QString());
+        room->throwCard(this, reason, effect.from);
+    } else {
+        room->throwCard(this, effect.from);
+        effect.from->turnOver();
+    }
+    QList<const Card *> equips = effect.to->getEquips();
+    if (!equips.isEmpty()) {
+        DummyCard *dummy = new DummyCard;
+        foreach (const Card *equip, equips) {
+            if (effect.from->canDiscard(effect.to, equip->getEffectiveId()))
+                dummy->addSubcard(equip);
+        }
+        if (dummy->subcardsLength() > 0)
+            room->throwCard(dummy, effect.to, effect.from);
+        delete dummy;
+    }
+    room->damage(DamageStruct("xingwu", effect.from, effect.to, effect.to->isMale() ? 2 : 1));
+}
+// 星舞视为技
+class XingwuViewAsSkill : public ViewAsSkill {
+  public:
+    XingwuViewAsSkill() : ViewAsSkill("xingwu") {
+        expand_pile = "xingwu";
+        response_pattern = "@@xingwu";
+    }
+    bool viewFilter(const QList<const Card *> &selected, const Card *to_select) const {
+        if (selected.isEmpty())
+            return Self->getPile("xingwu").contains(to_select->getEffectiveId()) ||
+                   (Self->getHandcards().contains(to_select) && !Self->isJilei(to_select));
+        else if (selected.length() == 1) {
+            if (Self->getPile("xingwu").contains(selected.first()->getEffectiveId()))
+                return Self->getPile("xingwu").contains(to_select->getEffectiveId());
+            else
+                return Self->getHandcards().contains(to_select) && !Self->isJilei(to_select);
+        } else if (selected.length() == 2 && Self->getPile("xingwu").contains(selected.first()->getEffectiveId())) {
+            return Self->getPile("xingwu").contains(to_select->getEffectiveId());
+        }
+        return false;
+    }
+    const Card *viewAs(const QList<const Card *> &cards) const {
+        if (cards.isEmpty())
+            return NULL;
+        if (Self->getPile("xingwu").contains(cards.first()->getEffectiveId()) && cards.length() != 3)
+            return NULL;
+        if (Self->getHandcards().contains(cards.first()) && cards.length() != 2)
+            return NULL;
+        XingwuCard *card = new XingwuCard;
+        card->addSubcards(cards);
+        return card;
+    }
+};
+// 星舞触发技
+class Xingwu : public TriggerSkill {
+  public:
+    Xingwu() : TriggerSkill("xingwu") {
+        events << EventPhaseStart;
+        view_as_skill = new XingwuViewAsSkill;
+    }
+    bool canPreshow() const { return true; }
+    QStringList triggerable(TriggerEvent, Room *, ServerPlayer *player, QVariant &, ServerPlayer *&) const {
+        if (TriggerSkill::triggerable(player) && player->getPhase() == Player::Discard)
+            return QStringList(objectName());
+        return QStringList();
+    }
+    bool cost(TriggerEvent, Room *room, ServerPlayer *player, QVariant &data, ServerPlayer *) const {
+        // ..是一张牌，而.是一张手牌
+        const Card *card = room->askForCard(player, "..", "@xingwu_card", data, Card::MethodNone);
+        if (!card)
+            return false;
+        room->notifySkillInvoked(player, objectName());
+        // 播放台词1或2
+        int n = qrand() % 2 + 1;
+        room->broadcastSkillInvoke(objectName(), n);
+        player->showSkill(objectName());
+        LogMessage log;
+        log.type = "#InvokeSkill";
+        log.from = player;
+        log.arg = objectName();
+        room->sendLog(log);
+        player->addToPile("xingwu", card);
+        if (player->getPile("xingwu").length() >= 3 || player->getHandcardNum() >= 2)
+            room->askForUseCard(player, "@@xingwu", "@xingwu_use");
+        return false;
+    }
+};
+// 落雁：锁定技，若你的武将牌上有“星舞”牌，你拥有“流离”和“天香”。
+class Luoyan : public TriggerSkill {
+  public:
+    Luoyan() : TriggerSkill("luoyan") {
+        events << CardsMoveOneTime << EventAcquireSkill << EventLoseSkill;
+        frequency = Compulsory;
+    }
+    QStringList triggerable(TriggerEvent event, Room *room, ServerPlayer *player, QVariant &data, ServerPlayer *&) const {
+        QString acquireSkills = "liuli_erqiao|tianxiang_erqiao";
+        QString detachSkills = "-liuli_erqiao|-tianxiang_erqiao";
+        if (event == EventAcquireSkill && data.toString() == objectName()) {
+            if (!player->getPile("xingwu").isEmpty()) {
+                player->addMark("luoyan");
+                room->sendCompulsoryTriggerLog(player, objectName());
+                room->handleAcquireDetachSkills(player, acquireSkills);
+            }
+        } else if (event == EventLoseSkill && data.toString() == objectName()) {
+            player->setMark("luoyan", 0);
+            room->sendCompulsoryTriggerLog(player, objectName());
+            room->handleAcquireDetachSkills(player, detachSkills, true); // true表示仅失去获得的技能
+        }
+        if (event == CardsMoveOneTime && TriggerSkill::triggerable(player)) {
+            QVariantList move_datas = data.toList();
+            foreach (QVariant move_data, move_datas) {
+                CardsMoveOneTimeStruct move = move_data.value<CardsMoveOneTimeStruct>();
+                if (move.to == player && move.to_place == Player::PlaceSpecial && move.to_pile_name == "xingwu") {
+                    if (!player->getPile("xingwu").isEmpty() && player->getMark("luoyan") == 0) {
+                        player->addMark("luoyan");
+                        room->sendCompulsoryTriggerLog(player, objectName());
+                        room->handleAcquireDetachSkills(player, acquireSkills);
+                    }
+                } else if (move.from == player && move.from_places.contains(Player::PlaceSpecial) &&
+                           move.from_pile_names.contains("xingwu")) {
+                    if (player->getPile("xingwu").isEmpty() && player->getMark("luoyan") > 0) {
+                        player->setMark("luoyan", 0);
+                        room->sendCompulsoryTriggerLog(player, objectName());
+                        room->handleAcquireDetachSkills(player, detachSkills, true); // true表示仅失去获得的技能
+                    }
+                }
+            }
+        }
+        return QStringList();
+    }
+};
+
 SPPackage::SPPackage() : Package("SP") {
     // 麴义
     General *quyi = new General(this, "quyi", "qun", 4);
@@ -299,6 +437,15 @@ SPPackage::SPPackage() : Package("SP") {
     dongbai->addSkill(new Lianzhu);
     addMetaObject<LianzhuCard>();
     dongbai->addSkill(new Xiahui);
+
+    // 大小乔
+    General *erqiao = new General(this, "erqiao", "wu", 3, false, true);
+    erqiao->addSkill(new Xingwu);
+    addMetaObject<XingwuCard>();
+    erqiao->addSkill(new Luoyan);
+    erqiao->addRelateSkill("liuli_erqiao");
+    erqiao->addRelateSkill("tianxiang_erqiao");
+    skills << new Liuli("_erqiao") << new Tianxiang("_erqiao");
 }
 
 ADD_PACKAGE(SP)

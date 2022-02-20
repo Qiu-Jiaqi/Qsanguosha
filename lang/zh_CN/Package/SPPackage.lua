@@ -2,6 +2,7 @@ return {
     ["SP"] = "SP",
     --麴义
     ["quyi"] = "麴义",
+    ["&quyi"] = "麴义",
     ["#quyi"] = "名门的骁将",
     ["illustrator:quyi"] = "秋呆呆",
     ["fuqi"] = "伏骑",
@@ -13,6 +14,7 @@ return {
     ["#jiaozi_sufferDamage"] = "%from 的“%arg”被触发，受到的伤害增加为 %arg2 点",
     -- 董白
     ["dongbai"] = "董白",
+    ["&dongbai"] = "董白",
     ["#dongbai"] = "魔姬",
     ["illustrator:dongbai"] = "Sonia Tang",
     ["lianzhu"] = "连诛",
@@ -22,5 +24,20 @@ return {
     [":xiahui"] = "锁定技，你的黑色牌不占用手牌上限；其他角色获得你的黑色牌时，这些牌标记为“黠慧”牌，其不能使用、打出、弃置“黠慧”牌;其体力值减少时，“黠慧”牌标记消失；其他角色的回合结束时，若其本回合失去过“黠慧”牌，且手牌中没有“黠慧”牌，其失去1点体力。",
     ["#xiahui_limited"] = "%from 的“%arg”被触发，%to 不能使用、打出、弃置从 %from 处获得的标记为“%arg”牌直到其体力值减少为止",
     ["#xiahui_limitedClear"] = "%to 体力值减少，%from 的“%arg”牌标记效果消失",
-    ["#xiahui_ignoreBlackHandCards"] = "%from 的“%arg”被触发，黑色牌不计入手牌上限"
+    ["#xiahui_ignoreBlackHandCards"] = "%from 的“%arg”被触发，黑色牌不计入手牌上限",
+    -- 大小乔
+    ["erqiao"] = "大乔＆小乔",
+    ["&erqiao"] = "大乔小乔",
+    ["#erqiao"] = "江东之花",
+    ["illustrator:erqiao"] = "木美人",
+    ["xingwu"] = "星舞",
+    [":xingwu"] = "弃牌阶段开始时，你可将一张牌置于你的武将牌上，称为“星舞”牌；然后你可移去三张“星舞”牌或弃置两张手牌并将武将牌翻面，弃置一名其他角色装备区里的所有牌，然后若其性别为：男性，你对其造成2点伤害；女性，你对其造成1点伤害。",
+    ["@xingwu_card"] = "你可以发动“星舞”，将一张牌置于武将牌上（称为“星舞”）",
+    ["@xingwu_use"] = "你可以发动“星舞”，弃置一名其他角色装备区所有牌，并对其造成伤害<br /><b>操作提示</b>: 移去三张“星舞”牌或弃置两张手牌并将武将牌翻面",
+    ["luoyan"] = "落雁",
+    [":luoyan"] = "锁定技，若你的武将牌上有“星舞”牌，你拥有【流离】和【天香】。",
+    ["liuli_erqiao"] = "流离",
+    ["tianxiang_erqiao"] = "天香",
+    ["tianxiang_erqiao:damage"] = "令 %from 对 %to 造成1点伤害",
+    ["tianxiang_erqiao:losehp"] = "令 %to 失去1点体力并获得卡牌【%log 】",
 }

@@ -17,7 +17,9 @@ yingjian_card =
     end,
     on_use = function(self, room, source, targets)
         local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+        -- 设置了该句则会有技能配音
         slash:setSkillName("_" .. self:objectName())
+        slash:setShowSkill(self:objectName())
         room:useCard(sgs.CardUseStruct(slash, source, targets[1]))
     end
 }
