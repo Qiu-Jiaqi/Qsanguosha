@@ -426,6 +426,92 @@ class Luoyan : public TriggerSkill {
     }
 };
 
+// 灵雎
+// 竭缘:每当你对一名其他角色造成伤害时，若其体力值大于等于你的体力值，你可以弃置一张黑色手牌，此伤害+1；
+//      每当你受到一名其他角色的伤害时，若其体力值大于等于你的体力值，你可以弃置一张红色手牌，此伤害-1。
+class Jieyuan : public TriggerSkill {
+  public:
+    Jieyuan() : TriggerSkill("jieyuan") { events << DamageCaused << DamageInflicted; }
+    QStringList triggerable(TriggerEvent event, Room *, ServerPlayer *player, QVariant &data, ServerPlayer *&) const {
+        if (TriggerSkill::triggerable(player)) {
+            DamageStruct damage = data.value<DamageStruct>();
+            if (event == DamageCaused && damage.to != player) {
+                // 造成伤害时：1.伤害目标不为自己；2.目标体力值>=自己 or 魏国角色死亡过
+                if (damage.to->getHp() >= player->getHp() || player->getMark("fenxin_wei") > 0) {
+                    return QStringList(objectName());
+                }
+            } else if (event == DamageInflicted && damage.from != player) {
+                // 受到伤害时：1.伤害来源不为自己；2.来源体力值>=自己 or 蜀国角色死亡过
+                if (damage.from->getHp() >= player->getHp() || player->getMark("fenxin_shu") > 0) {
+                    return QStringList(objectName());
+                }
+            }
+        }
+        return QStringList();
+    }
+    bool cost(TriggerEvent event, Room *room, ServerPlayer *player, QVariant &data, ServerPlayer *) const {
+        DamageStruct damage = data.value<DamageStruct>();
+        QString pattern, prompt;
+        // 根据不同事件选择弃牌和弃牌提示语
+        if (event == DamageCaused) {
+            pattern = ".|black";
+            prompt = "@jieyuan_increase";
+            if (player->getMark("fenxin_wu") > 0) {
+                pattern = "..";
+                prompt = "@jieyuan_increase+";
+            }
+        } else if (event == DamageInflicted) {
+            pattern = ".|red";
+            prompt = "@jieyuan_decrease";
+            if (player->getMark("fenxin_wu") > 0) {
+                pattern = "..";
+                prompt = "@jieyuan_decrease+";
+            }
+        }
+        return room->askForCard(player, pattern, prompt, data);
+    }
+    bool effect(TriggerEvent event, Room *room, ServerPlayer *player, QVariant &data, ServerPlayer *) const {
+        room->broadcastSkillInvoke(objectName(), player);
+        DamageStruct damage = data.value<DamageStruct>();
+        LogMessage log;
+        log.from = player;
+        log.arg = QString::number(damage.damage);
+        // 根据不同事件发送房间信息和设置伤害值
+        if (event == DamageCaused) {
+            log.type = "#jieyuan_increase";
+            log.arg2 = QString::number(++damage.damage);
+        } else if (event == DamageInflicted) {
+            log.type = "#jieyuan_decrease";
+            log.arg2 = QString::number(--damage.damage);
+        }
+        room->sendLog(log);
+        data = QVariant::fromValue(damage);
+        return damage.damage < 1;
+    }
+};
+// 焚心：锁定技，当一名其他角色死亡时，若其势力为：
+//      1.魏，你令“竭缘”增加伤害无体力值限制；
+//      2.蜀，你令“竭缘”减少伤害无体力值限制；
+//      3.吴，你令“竭缘”弃置牌无颜色限制且可弃置装备牌。
+class Fenxin : public TriggerSkill {
+  public:
+    Fenxin() : TriggerSkill("fenxin") {
+        events << Death;
+        frequency = Compulsory;
+    }
+    QStringList triggerable(TriggerEvent, Room *room, ServerPlayer *player, QVariant &data, ServerPlayer *&) const {
+        if (TriggerSkill::triggerable(player)) {
+            DeathStruct death = data.value<DeathStruct>();
+            QString kingdom = death.who->getKingdom();
+            // 当死亡角色势力为群、野心家 or 已有该标记时
+            if (kingdom == "qun" || kingdom == "careerist" || player->getMark("fenxin_" + kingdom) > 0)
+                return QStringList();
+            player->addMark("fenxin_" + kingdom);
+            room->sendCompulsoryTriggerLog(player, objectName());
+        }
+        return QStringList();
+    }
+};
 SPPackage::SPPackage() : Package("SP") {
     // 麴义
     General *quyi = new General(this, "quyi", "qun", 4);
@@ -439,13 +525,18 @@ SPPackage::SPPackage() : Package("SP") {
     dongbai->addSkill(new Xiahui);
 
     // 大小乔
-    General *erqiao = new General(this, "erqiao", "wu", 3, false, true);
+    General *erqiao = new General(this, "erqiao", "wu", 3, false);
     erqiao->addSkill(new Xingwu);
     addMetaObject<XingwuCard>();
     erqiao->addSkill(new Luoyan);
     erqiao->addRelateSkill("liuli_erqiao");
     erqiao->addRelateSkill("tianxiang_erqiao");
     skills << new Liuli("_erqiao") << new Tianxiang("_erqiao");
+
+    // 灵雎
+    General *lingju = new General(this, "lingju", "qun", 3, false, true);
+    lingju->addSkill(new Jieyuan);
+    lingju->addSkill(new Fenxin);
 }
 
 ADD_PACKAGE(SP)

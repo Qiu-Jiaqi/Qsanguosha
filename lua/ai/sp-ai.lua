@@ -89,6 +89,7 @@ sgs.ai_skill_invoke.xiahui = function(self, data)
 	-- 想进攻或想防御
 	return self:willShowForAttack() or self:willShowForDefence()
 end
+
 -- 大小乔：星舞
 -- 目前只会放牌，现在会动就行-.-
 sgs.ai_skill_cardask["@xingwu_card"] = function(self)
@@ -98,6 +99,65 @@ sgs.ai_skill_cardask["@xingwu_card"] = function(self)
 	local cards = sgs.QList2Table(self.player:getCards("he"))
 	self:sortByKeepValue(cards)
 	return cards[1]:getEffectiveId()
+end
+
+-- 灵雎：竭缘增伤
+sgs.ai_skill_cardask["@jieyuan_increase"] = function(self, data)
+	if not self:willShowForAttack() or not self:isEnemy(data:toDamage().to) then
+		return "."
+	end
+	local cards = sgs.QList2Table(self.player:getHandcards())
+	self:sortByKeepValue(cards)
+	for _, card in ipairs(cards) do
+		if card:isBlack() then
+			return card:getEffectiveId()
+		end
+	end
+	return "."
+end
+sgs.ai_skill_cardask["@jieyuan_increase+"] = function(self, data)
+	if not self:willShowForAttack() or not self:isEnemy(data:toDamage().to) then
+		return "."
+	end
+	local cards = sgs.QList2Table(self.player:getCards("he"))
+	self:sortByKeepValue(cards)
+	for _, card in ipairs(cards) do
+		return card:getEffectiveId()
+	end
+	return "."
+end
+-- 灵雎：竭缘减伤
+sgs.ai_skill_cardask["@jieyuan_decrease"] = function(self, data)
+	if not self:willShowForDefence() then
+		return "."
+	end
+	local damage = data:toDamage()
+	local cards = sgs.QList2Table(self.player:getHandcards())
+	self:sortByKeepValue(cards)
+	if self:needToLoseHp(self.player, damage.from) and damage.damage <= 1 then
+		return "."
+	end
+	for _, card in ipairs(cards) do
+		if card:isRed() then
+			return card:getEffectiveId()
+		end
+	end
+	return "."
+end
+sgs.ai_skill_cardask["@jieyuan_decrease+"] = function(self, data)
+	if not self:willShowForDefence() then
+		return "."
+	end
+	local damage = data:toDamage()
+	local cards = sgs.QList2Table(self.player:getCards("he"))
+	self:sortByKeepValue(cards)
+	if self:needToLoseHp(self.player, damage.from) and damage.damage <= 1 then
+		return "."
+	end
+	for _, card in ipairs(cards) do
+		return card:getEffectiveId()
+	end
+	return "."
 end
 
 --星彩：甚贤
