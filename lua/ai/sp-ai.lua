@@ -159,6 +159,11 @@ sgs.ai_skill_cardask["@jieyuan_decrease+"] = function(self, data)
 	end
 	return "."
 end
+-- 灵雎：焚心亮将询问
+sgs.ai_skill_invoke.fenxin = function(self, data)
+	-- 想进攻或想防御
+	return self:willShowForAttack() or self:willShowForDefence()
+end
 
 --星彩：甚贤
 sgs.ai_skill_invoke.shenxian = function(self, data)

@@ -471,6 +471,7 @@ class Jieyuan : public TriggerSkill {
         return room->askForCard(player, pattern, prompt, data);
     }
     bool effect(TriggerEvent event, Room *room, ServerPlayer *player, QVariant &data, ServerPlayer *) const {
+        room->notifySkillInvoked(player, objectName());
         room->broadcastSkillInvoke(objectName(), player);
         DamageStruct damage = data.value<DamageStruct>();
         LogMessage log;
@@ -499,17 +500,26 @@ class Fenxin : public TriggerSkill {
         events << Death;
         frequency = Compulsory;
     }
-    QStringList triggerable(TriggerEvent, Room *room, ServerPlayer *player, QVariant &data, ServerPlayer *&) const {
+    QStringList triggerable(TriggerEvent, Room *, ServerPlayer *player, QVariant &data, ServerPlayer *&) const {
         if (TriggerSkill::triggerable(player)) {
             DeathStruct death = data.value<DeathStruct>();
             QString kingdom = death.who->getKingdom();
             // 当死亡角色势力为群、野心家 or 已有该标记时
             if (kingdom == "qun" || kingdom == "careerist" || player->getMark("fenxin_" + kingdom) > 0)
                 return QStringList();
-            player->addMark("fenxin_" + kingdom);
-            room->sendCompulsoryTriggerLog(player, objectName());
+            return QStringList(objectName());
         }
         return QStringList();
+    }
+    bool cost(TriggerEvent , Room *, ServerPlayer *player, QVariant &data, ServerPlayer *) const {
+        return player->hasShownSkill(this) || player->askForSkillInvoke(this, data);
+    }
+    bool effect(TriggerEvent , Room *room, ServerPlayer *player, QVariant &data, ServerPlayer *) const {
+        room->sendCompulsoryTriggerLog(player, objectName());
+        room->notifySkillInvoked(player, objectName());
+        room->broadcastSkillInvoke(objectName(), player);
+        player->addMark("fenxin_" + data.value<DeathStruct>().who->getKingdom());
+        return false;
     }
 };
 SPPackage::SPPackage() : Package("SP") {
